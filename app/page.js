@@ -15,7 +15,7 @@ export default function HomePage() {
         <Link href="/audit" className="card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
           <h2>页面审计</h2>
           <p className="muted" style={{ margin: 0 }}>
-            基于 sitemap 爬取页面，规则打分并输出修复建议（本地/API 运行，无需云函数）。
+            规则审计 + 可选 Lighthouse / site-audit-seo 整站爬虫。
           </p>
         </Link>
         <Link

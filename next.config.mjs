@@ -31,6 +31,7 @@ loadSecretsEnv();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['lighthouse', 'chrome-launcher'],
 };
 
 export default nextConfig;

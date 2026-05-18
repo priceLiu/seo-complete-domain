@@ -11,18 +11,30 @@ function scoreClass(s) {
 
 export default function AuditPage() {
   const [maxPages, setMaxPages] = useState(20);
+  const [lighthouseMax, setLighthouseMax] = useState(3);
+  const [siteAuditMax, setSiteAuditMax] = useState(25);
+  const [engineRules, setEngineRules] = useState(true);
+  const [engineLighthouse, setEngineLighthouse] = useState(false);
+  const [engineSiteAudit, setEngineSiteAudit] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [auditSecret, setAuditSecret] = useState('');
   const [requiresSecret, setRequiresSecret] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [data, setData] = useState(null);
+  const [siteAuditData, setSiteAuditData] = useState(null);
 
   const loadLatest = () => {
     fetch('/api/audit/latest')
       .then((r) => r.json())
       .then((d) => {
         if (!d.empty) setData(d);
+      })
+      .catch(() => {});
+    fetch('/api/audit/site-audit-seo')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.empty) setSiteAuditData(d);
       })
       .catch(() => {});
   };
@@ -39,6 +51,10 @@ export default function AuditPage() {
   }, []);
 
   const run = () => {
+    if (!engineRules && !engineLighthouse && !engineSiteAudit) {
+      setErr('请至少选择一种审计引擎。');
+      return;
+    }
     if (requiresSecret && !auditSecret.trim()) {
       setErr('请输入审计密钥（与服务端 AUDIT_RUN_SECRET 一致）。');
       return;
@@ -48,20 +64,32 @@ export default function AuditPage() {
     const secret = auditSecret.trim();
     const headers = { 'Content-Type': 'application/json' };
     if (secret) headers.Authorization = `Bearer ${secret}`;
+    const engines = [];
+    if (engineRules) engines.push('rules');
+    if (engineLighthouse) engines.push('lighthouse');
+    if (engineSiteAudit) engines.push('site-audit-seo');
+
     fetch('/api/audit/run', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         maxPages,
+        lighthouseMaxPages: lighthouseMax,
+        siteAuditMaxPages: siteAuditMax,
         keywords,
+        engines,
         ...(secret ? { secret } : {}),
       }),
     })
       .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+        return j;
       })
-      .then(setData)
+      .then((j) => {
+        setData(j);
+        if (j.siteAuditSeo) loadLatest();
+      })
       .catch((e) => setErr(e.message || String(e)))
       .finally(() => setLoading(false));
   };
@@ -105,14 +133,44 @@ export default function AuditPage() {
     <main className="layout-shell">
       <h1>页面 SEO 审计</h1>
       <p className="muted">
-        从目标站 <code>sitemap.xml</code> 取链接并逐页检查；结果写入本地 <code>data/audit-latest.json</code>。
+        支持三种引擎：<strong>规则审计</strong>（内置）、<strong>Lighthouse</strong>（本机
+        Chrome）、<strong>site-audit-seo</strong>（整站爬虫 + 可选 Lighthouse 字段）。结果写入{' '}
+        <code>data/</code>。
       </p>
 
       <div className="card">
-        <h2>运行参数</h2>
+        <h2>审计引擎</h2>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            <input
+              type="checkbox"
+              checked={engineRules}
+              onChange={(e) => setEngineRules(e.target.checked)}
+            />{' '}
+            规则审计（title / meta / H1 / alt，默认）
+          </label>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            <input
+              type="checkbox"
+              checked={engineLighthouse}
+              onChange={(e) => setEngineLighthouse(e.target.checked)}
+            />{' '}
+            Lighthouse（前 {lighthouseMax} 页，较慢，需本机 Chrome）
+          </label>
+          <label style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              checked={engineSiteAudit}
+              onChange={(e) => setEngineSiteAudit(e.target.checked)}
+            />{' '}
+            site-audit-seo 整站爬虫（最多 {siteAuditMax} 页，含 Lighthouse 字段，首次会下载 CLI）
+          </label>
+        </div>
+
+        <h2 style={{ fontSize: '0.95rem' }}>运行参数</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
           <label>
-            <div className="muted">最大页面数</div>
+            <div className="muted">规则/Lighthouse 页数</div>
             <input
               type="number"
               min={1}
@@ -120,6 +178,28 @@ export default function AuditPage() {
               value={maxPages}
               onChange={(e) => setMaxPages(Number(e.target.value))}
               style={{ padding: 8, width: 100, borderRadius: 8, border: '1px solid var(--color-border)' }}
+            />
+          </label>
+          <label>
+            <div className="muted">Lighthouse 页数</div>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={lighthouseMax}
+              onChange={(e) => setLighthouseMax(Number(e.target.value))}
+              style={{ padding: 8, width: 80, borderRadius: 8, border: '1px solid var(--color-border)' }}
+            />
+          </label>
+          <label>
+            <div className="muted">site-audit-seo 页数</div>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={siteAuditMax}
+              onChange={(e) => setSiteAuditMax(Number(e.target.value))}
+              style={{ padding: 8, width: 80, borderRadius: 8, border: '1px solid var(--color-border)' }}
             />
           </label>
           <label style={{ flex: '1 1 220px' }}>
@@ -134,7 +214,7 @@ export default function AuditPage() {
           </label>
           {requiresSecret ? (
             <label style={{ flex: '1 1 200px' }}>
-              <div className="muted">审计密钥（服务端已启用保护）</div>
+              <div className="muted">审计密钥</div>
               <input
                 type="password"
                 autoComplete="off"
@@ -149,6 +229,10 @@ export default function AuditPage() {
             {loading ? '审计中…' : '开始审计'}
           </button>
         </div>
+        <p className="muted" style={{ marginTop: 12, marginBottom: 0, fontSize: '0.88rem' }}>
+          终端亦可运行：<code>npm run audit:lighthouse</code>、{' '}
+          <code>npm run audit:site-audit-seo</code>
+        </p>
         {err ? (
           <p className="issue-high" style={{ marginTop: 12, marginBottom: 0 }}>
             {err}
@@ -164,17 +248,24 @@ export default function AuditPage() {
               <span className={`badge ${scoreClass(data.avgScore)}`}>{data.auditDate}</span>
             </h2>
             <p style={{ marginTop: 0 }}>
-              平均得分：<strong>{data.avgScore}</strong> · 已审计页面：
+              平均得分：<strong>{data.avgScore}</strong> · 已审计：
               <strong>{data.auditedPages}</strong>
+              {data.engines?.length ? (
+                <span className="muted"> · 引擎：{data.engines.join(', ')}</span>
+              ) : null}
             </p>
-            <h3 style={{ fontSize: '0.95rem', marginBottom: 8 }}>常见问题 TOP</h3>
-            <ul className="muted" style={{ marginTop: 0 }}>
-              {data.topIssues?.map((t, i) => (
-                <li key={i}>
-                  {t.message} <span className="badge badge-warn">{t.count} 次</span>
-                </li>
-              ))}
-            </ul>
+            {data.topIssues?.length ? (
+              <>
+                <h3 style={{ fontSize: '0.95rem', marginBottom: 8 }}>常见问题 TOP</h3>
+                <ul className="muted" style={{ marginTop: 0 }}>
+                  {data.topIssues.map((t, i) => (
+                    <li key={i}>
+                      {t.message} <span className="badge badge-warn">{t.count} 次</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </div>
 
           {chartOption ? (
@@ -184,42 +275,72 @@ export default function AuditPage() {
             </div>
           ) : null}
 
-          <div className="card">
-            <h2>明细</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table-simple">
-                <thead>
-                  <tr>
-                    <th>URL</th>
-                    <th>得分</th>
-                    <th>首要问题</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.pages
-                    .slice()
-                    .sort((a, b) => a.score - b.score)
-                    .map((p, i) => (
-                      <tr key={i}>
-                        <td style={{ maxWidth: 360, wordBreak: 'break-all' }}>
-                          <a href={p.url} target="_blank" rel="noreferrer">
-                            {p.url}
-                          </a>
-                        </td>
-                        <td>
-                          <span className={`badge ${scoreClass(p.score)}`}>{p.score}</span>
-                        </td>
-                        <td className="muted">
-                          {p.issues[0]?.message || '—'}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <PageTable title="审计明细" pages={data.pages} />
         </>
       )}
+
+      {siteAuditData && !siteAuditData.empty ? (
+        <div className="card" style={{ marginTop: 20 }}>
+          <h2>
+            site-audit-seo 爬虫结果{' '}
+            <span className="badge badge-ok">{siteAuditData.auditDate}</span>
+          </h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            共 <strong>{siteAuditData.auditedPages}</strong> 页
+            {siteAuditData.jsonPath ? (
+              <>
+                {' '}
+                · 原始 JSON：<code>{siteAuditData.jsonPath}</code>
+              </>
+            ) : null}
+          </p>
+          <PageTable title="页面列表" pages={siteAuditData.pages} showLh />
+        </div>
+      ) : null}
     </main>
+  );
+}
+
+function PageTable({ title, pages, showLh }) {
+  if (!pages?.length) return null;
+  return (
+    <>
+      <h3 style={{ fontSize: '0.95rem' }}>{title}</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="table-simple">
+          <thead>
+            <tr>
+              <th>URL</th>
+              <th>得分</th>
+              {showLh ? <th>LH SEO</th> : <th>引擎</th>}
+              <th>首要问题</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pages
+              .slice()
+              .sort((a, b) => a.score - b.score)
+              .map((p, i) => (
+                <tr key={i}>
+                  <td style={{ maxWidth: 320, wordBreak: 'break-all' }}>
+                    <a href={p.url} target="_blank" rel="noreferrer">
+                      {p.url}
+                    </a>
+                  </td>
+                  <td>
+                    <span className={`badge ${scoreClass(p.score)}`}>{p.score}</span>
+                  </td>
+                  <td className="muted">
+                    {showLh
+                      ? p.lighthouse?.seo ?? p.details?.lighthouse_scores_seo ?? '—'
+                      : (p.engines || []).join(', ') || 'rules'}
+                  </td>
+                  <td className="muted">{p.issues?.[0]?.message || '—'}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
