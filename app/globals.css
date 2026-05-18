@@ -1,0 +1,264 @@
+:root {
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-text: #16191d;
+  --color-muted: #5f6670;
+  --color-border: #e2e4e8;
+  --color-accent: #2264e6;
+  --color-accent-hover: #1850c7;
+  --color-danger: #c62828;
+  --color-warn: #e65100;
+  --color-ok: #2e7d32;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(22, 25, 29, 0.06);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+  --maxw: 1120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.layout-shell {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.nav-brand {
+  font-weight: 650;
+  color: var(--color-text);
+  margin-right: 16px;
+}
+
+.nav a {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.nav a:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.nav a.active {
+  background: var(--color-bg);
+  color: var(--color-accent);
+  font-weight: 550;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+}
+
+.card + .card {
+  margin-top: 20px;
+}
+
+h1 {
+  font-size: 1.45rem;
+  font-weight: 650;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--color-text);
+}
+
+.muted {
+  color: var(--color-muted);
+  font-size: 0.92rem;
+}
+
+.btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 820px) {
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.issue-high {
+  color: var(--color-danger);
+}
+
+.issue-med {
+  color: var(--color-warn);
+}
+
+.issue-low {
+  color: var(--color-muted);
+}
+
+.bing-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bing-cap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.bing-cap-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow);
+}
+
+.bing-cap-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bing-api-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.bing-api-section h3 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-simple {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table-simple th,
+.table-simple td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-simple th {
+  color: var(--color-muted);
+  font-weight: 550;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 550;
+}
+
+.badge-ok {
+  background: #e8f5e9;
+  color: var(--color-ok);
+}
+
+.badge-warn {
+  background: #fff3e0;
+  color: var(--color-warn);
+}
+
+.badge-bad {
+  background: #ffebee;
+  color: var(--color-danger);
+}

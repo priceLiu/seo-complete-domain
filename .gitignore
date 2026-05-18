@@ -1,0 +1,18 @@
+# deps & build
+node_modules/
+.next/
+out/
+
+# env & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+config/secrets.env
+
+# local data (audit runs)
+/data/
+
+.DS_Store
+*.log

@@ -1,0 +1,13 @@
+---
+description: Next.js 前端与 ECharts，统一简洁视觉
+globs: app/**/*.{js,jsx,css} components/**/*.{js,jsx}
+alwaysApply: false
+---
+
+# UI 与图表
+
+- **样式**：仅用 `app/globals.css` 中的 CSS 变量（`--color-*`、`--radius`、`--font`、`--maxw`），保持简洁白底灰边卡片；禁止引入第二套无规范的配色。  
+- **布局**：内容区最大宽度 `var(--maxw)`，卡片用 `.card`，间距一致（约 20–24px）。  
+- **ECharts**：优先 `opts={{ renderer: 'svg' }}`；配色与 `--color-ok` / `--color-warn` / `--color-danger` 一致，避免霓虹渐变。  
+- **文案**：中文为主，错误/提示用短句；链接用 `var(--color-accent)`。  
+- **响应式**：窄屏下单列堆叠（已有 `.grid-2` media query），表格可横向滚动。
