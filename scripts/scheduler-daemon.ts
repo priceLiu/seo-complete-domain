@@ -1,6 +1,5 @@
 /**
- * 独立定时进程：与 Next 并行运行，按 BAIDU_SCHEDULE_* 执行 Sitemap 推送。
- * 例：npm run schedule:daemon
+ * 多站点 × 多引擎队列推送守护进程（百度 + Bing）。
  */
 import { createRequire } from 'node:module';
 import cron from 'node-cron';
@@ -9,34 +8,35 @@ const require = createRequire(import.meta.url);
 require('./load-env').loadProjectEnv();
 
 async function main() {
+  const { listSites } = await import('../lib/sites.js');
+  const { runScheduledPushAllSites } = await import('../lib/run-scheduled-push.js');
   const { getScheduleConfig, isScheduleEnabled } = await import('../lib/schedule-config.js');
-  const { runScheduledBaiduPush } = await import('../lib/run-scheduled-baidu-push.js');
 
   if (!isScheduleEnabled()) {
-    console.log('[baidu-schedule] BAIDU_SCHEDULE_ENABLED 未开启，退出');
+    console.log('[schedule] BAIDU_SCHEDULE_ENABLED 未开启，退出');
     process.exit(0);
   }
 
   const cfg = getScheduleConfig();
-  if (!cron.validate(cfg.cronExpr)) {
-    console.error('[baidu-schedule] 无效 cron:', cfg.cronExpr);
-    process.exit(1);
-  }
-
+  const sites = listSites();
   console.log(
-    `[baidu-schedule] 守护进程已启动：每天 ${cfg.time}（${cfg.cronExpr}，${cfg.timezone}）→ ${cfg.sitemapUrl}`,
+    `[schedule] 守护：每天 ${cfg.time}（${cfg.cronExpr}）· ${sites.length} 站 · 引擎 baidu+bing`,
   );
-  console.log('[baidu-schedule] 手动执行一次：npm run schedule:run');
+  console.log('[schedule] 手动：npm run schedule:run');
 
   cron.schedule(
     cfg.cronExpr,
     async () => {
-      console.log('[baidu-schedule] 定时任务开始', new Date().toISOString());
-      try {
-        const r = await runScheduledBaiduPush({ trigger: 'cron' });
-        console.log('[baidu-schedule] 完成', r.push?.urlCount, '条, success≈', r.push?.totalSuccess);
-      } catch (e) {
-        console.error('[baidu-schedule] 失败:', (e as Error).message || e);
+      console.log('[schedule] 定时开始', new Date().toISOString());
+      const results = await runScheduledPushAllSites({ trigger: 'cron' });
+      for (const r of results) {
+        if (r.ok) {
+          console.log(
+            `[schedule] ${r.siteId}/${r.engine} 本批 ${r.record?.batchSize ?? 0} · ${r.record?.queue?.percent ?? 0}%`,
+          );
+        } else {
+          console.error(`[schedule] ${r.siteId}/${r.engine} 失败:`, r.error);
+        }
       }
     },
     { timezone: cfg.timezone },
@@ -44,6 +44,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('[baidu-schedule] 启动失败:', (e as Error).message || e);
+  console.error('[schedule] 启动失败:', (e as Error).message || e);
   process.exit(1);
 });

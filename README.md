@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-见 [docs/releases/v0.3.2.md](./docs/releases/v0.3.2.md)，更多版本见 [docs/releases/README.md](./docs/releases/README.md)。
+见 [docs/releases/v0.4.1.md](./docs/releases/v0.4.1.md)，更多版本见 [docs/releases/README.md](./docs/releases/README.md)。
 
 ## 快速开始
 

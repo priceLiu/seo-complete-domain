@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { ensureAuditAuthorized } from '@/lib/auth-audit';
-import { runScheduledBaiduPush, getScheduleStatus } from '@/lib/run-scheduled-baidu-push';
+import { runScheduledPush, getScheduleStatus } from '@/lib/run-scheduled-push';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
-export async function GET() {
-  return NextResponse.json(getScheduleStatus());
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  return NextResponse.json(getScheduleStatus(searchParams.get('siteId')));
 }
 
 export async function POST(request) {
@@ -21,12 +22,15 @@ export async function POST(request) {
   if (denied) return denied;
 
   try {
-    const record = await runScheduledBaiduPush({
+    const record = await runScheduledPush({
+      siteId: body.siteId,
+      engine: body.engine || 'baidu',
       trigger: 'api',
       sitemapUrl: body.sitemapUrl,
-      maxPages: body.maxPages,
+      dailyLimit: body.dailyLimit,
       type: body.type,
       ping: body.ping,
+      forceSync: body.forceSync,
     });
     return NextResponse.json({ ok: true, record });
   } catch (e) {

@@ -1,0 +1,22 @@
+{
+  "activeSiteId": "ai-code8",
+  "sites": [
+    {
+      "id": "ai-code8",
+      "name": "AI Code 8",
+      "url": "https://www.ai-code8.com",
+      "sitemapUrl": "https://www.ai-code8.com/sitemap.xml",
+      "schedule": {
+        "baiduEnabled": true,
+        "bingEnabled": true,
+        "time": "03:00",
+        "timezone": "Asia/Shanghai"
+      },
+      "push": {
+        "baiduDailyLimit": 100,
+        "bingDailyLimit": 100,
+        "baiduBatchSize": 2000
+      }
+    }
+  ]
+}
