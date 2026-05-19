@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+.git
+data
+.env
+.env.*
+config/secrets.env
+config/sites-secrets.json
+*.log
+.DS_Store
+README.md
+docs
+.cursor

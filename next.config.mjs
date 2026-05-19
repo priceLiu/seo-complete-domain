@@ -31,7 +31,17 @@ loadSecretsEnv();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ['lighthouse', 'chrome-launcher'],
+  output: 'standalone',
+  experimental: {
+    serverComponentsExternalPackages: ['lighthouse', 'chrome-launcher'],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('lighthouse', 'chrome-launcher');
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -1,4 +1,8 @@
-# 腾讯云 SCF 部署（简化版）
+# 腾讯云 SCF 部署（定时推送）
+
+> **网站用 CloudBase 云托管？** 先看 [deploy-cloudbase.md](./deploy-cloudbase.md)（云托管与 SCF 分工、环境变量）。
+
+# 云函数 seo-push（简化版）
 
 **不用配 `SITES_SECRETS_JSON`**。本地打好包上传即可，密钥已包含在 zip 内。
 

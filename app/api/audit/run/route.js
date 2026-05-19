@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { ensureAuditAuthorized } from '@/lib/auth-audit';
 import { auditPage } from '@/lib/audit-engine';
 import { getAuditUrlList } from '@/lib/fetchUrls';
-import { mergeLighthouseIntoAudit, runLighthouseAudit } from '@/lib/lighthouse-runner';
-import { runSiteAuditSeo } from '@/lib/site-audit-seo-runner';
 import { getSiteUrl } from '@/lib/site';
 import { writeAuditStore, writeSiteAuditSeoStore } from '@/lib/store';
 
@@ -59,6 +57,7 @@ export async function POST(request) {
 
   if (useSiteAuditSeo) {
     try {
+      const { runSiteAuditSeo } = await import('@/lib/site-audit-seo-runner');
       const crawled = await runSiteAuditSeo(siteUrl, {
         maxPages: siteAuditMax,
         withLighthouse: true,
@@ -97,6 +96,9 @@ export async function POST(request) {
 
         if (useLighthouse && i < lhMax) {
           try {
+            const { runLighthouseAudit, mergeLighthouseIntoAudit } = await import(
+              '@/lib/lighthouse-runner'
+            );
             const lh = await runLighthouseAudit(url);
             row = mergeLighthouseIntoAudit(row, lh);
           } catch (e) {
