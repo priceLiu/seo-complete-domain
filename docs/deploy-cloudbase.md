@@ -30,7 +30,18 @@
 
 仓库根目录已提供 **`Dockerfile`**。若提示「代码仓库中没有找到 Dockerfile」，提交并推送该文件后，在云托管重新开启自动部署即可。
 
-构建在镜像内完成（`npm ci --ignore-scripts` → `npm run build`），基础镜像 **Node 20**，容器监听 **80** 端口。  
+构建在镜像内完成（`npm ci --ignore-scripts` → `npm run build`），基础镜像 **Node 20**。
+
+### 服务端口（重要）
+
+容器内应用监听 **`3000`**（非 root 不能绑 80）。在云托管服务配置里：
+
+| 项 | 值 |
+|----|-----|
+| 容器端口 / 服务端口 | **3000** |
+| 访问端口 | 80/443（由平台对外，无需改） |
+
+若环境变量里有 `PORT=80`，请删掉或改为 `3000`，否则会 `EACCES permission denied`。  
 若构建日志出现 `postinstall` / `sync-env` 失败，请确认仓库已包含最新 `Dockerfile`。
 
 **不要**在云托管里配置启动 `schedule:daemon`；定时推送交给 SCF。
