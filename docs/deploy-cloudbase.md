@@ -30,7 +30,7 @@
 
 仓库根目录已提供 **`Dockerfile`**。若提示「代码仓库中没有找到 Dockerfile」，提交并推送该文件后，在云托管重新开启自动部署即可。
 
-构建在镜像内完成（`npm ci --ignore-scripts` → `npm run build`），容器监听 **80** 端口。  
+构建在镜像内完成（`npm ci --ignore-scripts` → `npm run build`），基础镜像 **Node 20**，容器监听 **80** 端口。  
 若构建日志出现 `postinstall` / `sync-env` 失败，请确认仓库已包含最新 `Dockerfile`。
 
 **不要**在云托管里配置启动 `schedule:daemon`；定时推送交给 SCF。

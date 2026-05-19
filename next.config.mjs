@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Blob, File } from 'node:buffer';
+
+// Node 18 构建阶段无全局 File，cheerio/axios 会报错
+if (typeof globalThis.File === 'undefined') globalThis.File = File;
+if (typeof globalThis.Blob === 'undefined') globalThis.Blob = Blob;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +43,7 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
-      config.externals.push('lighthouse', 'chrome-launcher');
+      config.externals.push('lighthouse', 'chrome-launcher', 'cheerio', 'axios');
     }
     return config;
   },

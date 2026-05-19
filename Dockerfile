@@ -1,12 +1,12 @@
 # CloudBase 云托管 · Next.js 14
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 ENV SEO_SKIP_ENV_BOOTSTRAP=1
 # 镜像构建不跑 postinstall（无 secrets.env）；运行时靠云托管环境变量
 RUN npm ci --ignore-scripts
 
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -14,7 +14,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV SEO_SKIP_ENV_BOOTSTRAP=1
 RUN npm run build
 
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
