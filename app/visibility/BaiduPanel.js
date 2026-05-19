@@ -8,7 +8,7 @@ export default function BaiduPanel() {
   const [requiresSecret, setRequiresSecret] = useState(false);
   const [submitMode, setSubmitMode] = useState('manual');
   const [sitemapUrl, setSitemapUrl] = useState('');
-  const [sitemapMax, setSitemapMax] = useState(500);
+  const [sitemapMax, setSitemapMax] = useState(50);
   const [sitemapPreview, setSitemapPreview] = useState(null);
   const [urlsText, setUrlsText] = useState('');
   const [pushType, setPushType] = useState('normal');
@@ -267,7 +267,9 @@ export default function BaiduPanel() {
           {submitMode === 'sitemap' ? (
             <>
               <p className="muted" style={{ marginTop: 0 }}>
-                从 <code>sitemap.xml</code> 解析 URL 并分批推送（每批 ≤2000）；同时尝试 ping 登记 Sitemap 地址。
+                从 <code>sitemap.xml</code> 解析 URL 并按百度返回的 <code>remain</code>{' '}
+                分批推送（不会一次提交全部 URL）；同时尝试 ping 登记 Sitemap 地址。整站 URL 较多时请用上方
+                「定时队列」按 <code>config/sites.json</code> 的 <code>baiduDailyLimit</code> 每日续推。
               </p>
               <label className="muted" style={{ display: 'block', marginBottom: 8 }}>
                 Sitemap 地址
@@ -304,7 +306,14 @@ export default function BaiduPanel() {
               />
               {sitemapPreview ? (
                 <p className="muted" style={{ marginTop: 0 }}>
-                  预览：共 <strong>{sitemapPreview.count}</strong> 条 URL
+                  预览：共 <strong>{sitemapPreview.count}</strong> 条 URL。
+                  {sitemapPreview.count > 20 ? (
+                    <>
+                      {' '}
+                      若一次推送报「额度超了」，通常是条数大于百度当日剩余配额（接口字段{' '}
+                      <code>remain</code>），与「昨天是否点过推送」无关；请改用小批次或队列。
+                    </>
+                  ) : null}
                 </p>
               ) : null}
             </>
@@ -394,14 +403,27 @@ export default function BaiduPanel() {
           </pre>
           {result.mode === 'sitemap' && result.push ? (
             <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              已从 Sitemap 推送 <strong>{result.push.urlCount}</strong> 条，分{' '}
-              <strong>{result.push.batchCount}</strong> 批；成功约{' '}
-              <strong>{result.push.totalSuccess}</strong> 条。
+              Sitemap 共 <strong>{result.push.urlCount}</strong> 条；本次实际提交{' '}
+              <strong>{result.push.pushedCount ?? result.push.urlCount}</strong> 条（分{' '}
+              <strong>{result.push.batchCount}</strong> 批），百度成功{' '}
+              <strong>{result.push.totalSuccess}</strong> 条
+              {typeof result.push.lastRemain === 'number' ? (
+                <>
+                  ，今日剩余额度 <strong>{result.push.lastRemain}</strong>
+                </>
+              ) : null}
+              {result.push.skippedCount > 0 ? (
+                <>
+                  ；未提交 <strong>{result.push.skippedCount}</strong> 条（配额不足，请明日再推或走队列）
+                </>
+              ) : null}
+              。
               {result.pingError ? ` Ping：${result.pingError}` : null}
             </p>
           ) : (
             <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              常见字段：<code>success</code>、<code>remain</code>（以平台说明为准）。
+              常见字段：<code>success</code>（本次成功条数）、<code>remain</code>
+              （今日剩余可推送条数）。单条成功不代表 Sitemap 可一次推全站。
             </p>
           )}
         </div>

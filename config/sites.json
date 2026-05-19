@@ -13,7 +13,7 @@
         "timezone": "Asia/Shanghai"
       },
       "push": {
-        "baiduDailyLimit": 100,
+        "baiduDailyLimit": 10,
         "bingDailyLimit": 100,
         "baiduBatchSize": 2000
       }

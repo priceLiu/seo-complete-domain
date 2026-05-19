@@ -4,8 +4,10 @@ import { auditPage } from '@/lib/audit-engine';
 import { getAuditUrlList } from '@/lib/fetchUrls';
 import { getSiteUrl } from '@/lib/site';
 import { writeAuditStore, writeSiteAuditSeoStore } from '@/lib/store';
+import { getCloudAuditLimits, isCloudHosted } from '@/lib/runtime-env';
 
 export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
 
 function parseEngines(body) {
   const raw = body.engines;
@@ -32,8 +34,33 @@ export async function POST(request) {
   const useRules = engines.includes('rules');
   const useLighthouse = engines.includes('lighthouse');
   const useSiteAuditSeo = engines.includes('site-audit-seo');
+  const cloud = getCloudAuditLimits();
 
-  const maxPages = Math.min(parseInt(String(body.maxPages), 10) || 25, 80);
+  if (cloud) {
+    if (useSiteAuditSeo) {
+      return NextResponse.json(
+        {
+          error:
+            '云托管不支持 site-audit-seo（需 npx 下载与长时间爬取，会触发 504）。请仅勾选「规则审计」或在本机执行 npm run audit:site-audit-seo。',
+        },
+        { status: 503 },
+      );
+    }
+    if (useLighthouse) {
+      return NextResponse.json(
+        {
+          error:
+            '云托管无 Chrome，无法运行 Lighthouse。请仅勾选「规则审计」，或在本机执行 npm run audit:lighthouse。',
+        },
+        { status: 503 },
+      );
+    }
+  }
+
+  let maxPages = Math.min(parseInt(String(body.maxPages), 10) || 25, 80);
+  if (cloud?.maxRulesPages) {
+    maxPages = Math.min(maxPages, cloud.maxRulesPages);
+  }
   const lhMax = Math.min(
     parseInt(
       String(body.lighthouseMaxPages || process.env.AUDIT_LIGHTHOUSE_MAX_PAGES || '3'),

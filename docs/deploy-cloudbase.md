@@ -70,6 +70,17 @@ CloudBase 健康检查默认探测 **80**，镜像内应用监听 **`PORT=80`**�
 
 ---
 
+## 页面审计（避免 HTTP 504）
+
+云托管网关约 **60 秒**超时，线上请：
+
+- 仅使用 **规则审计**，页数建议 **≤10**
+- **不要**在线上勾选 Lighthouse / site-audit-seo（无 Chrome、npx 耗时长会 504）
+
+整站爬虫、Lighthouse 在本机：`npm run audit:site-audit-seo`、`npm run audit:lighthouse`。
+
+---
+
 ## 三、SCF 云函数（定时推送）
 
 与云托管无关，按 [deploy-tencent.md](./deploy-tencent.md) 操作：

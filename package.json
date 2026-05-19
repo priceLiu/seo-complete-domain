@@ -13,6 +13,9 @@
     "schedule:daemon": "tsx scripts/scheduler-daemon.ts",
     "scf:package": "node scripts/scf-package.js",
     "scf:deploy": "node scripts/scf-package.js",
+    "seonaut:up": "docker compose -f deploy/seonaut/docker-compose.yml up -d",
+    "seonaut:down": "docker compose -f deploy/seonaut/docker-compose.yml down",
+    "seonaut:logs": "docker compose -f deploy/seonaut/docker-compose.yml logs -f app",
     "audit:lighthouse": "tsx scripts/audit-lighthouse.ts",
     "audit:site-audit-seo": "tsx scripts/audit-site-audit-seo.ts",
     "lint": "next lint"

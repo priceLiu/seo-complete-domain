@@ -1,0 +1,50 @@
+# SEOnaut 本机试用 · 访问 http://localhost:9000
+# 启动：docker compose up -d
+# 停止：docker compose down
+# 数据会保存在 Docker volume（db 数据）
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: seonaut-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: seonaut
+      MYSQL_USER: seonaut
+      MYSQL_PASSWORD: seonaut
+    volumes:
+      - seonaut_mysql:/var/lib/mysql
+    networks:
+      - seonaut_network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-useonaut', '-pseonaut']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Apple Silicon：官方镜像仅 amd64，需平台模拟
+    platform: linux/amd64
+    image: ghcr.io/stjudewashere/seonaut:latest
+    container_name: seonaut-app
+    ports:
+      - '9000:9000'
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "/bin/wait && /app/seonaut"
+    environment:
+      WAIT_HOSTS: db:3306
+      WAIT_TIMEOUT: 300
+      WAIT_SLEEP_INTERVAL: 5
+      WAIT_HOST_CONNECT_TIMEOUT: 30
+      SEONAUT_SERVER_URL: http://localhost:9000
+    networks:
+      - seonaut_network
+
+networks:
+  seonaut_network:
+    driver: bridge
+
+volumes:
+  seonaut_mysql:

@@ -19,6 +19,7 @@ export default function AuditPage() {
   const [keywords, setKeywords] = useState('');
   const [auditSecret, setAuditSecret] = useState('');
   const [requiresSecret, setRequiresSecret] = useState(false);
+  const [cloudHosted, setCloudHosted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [data, setData] = useState(null);
@@ -46,7 +47,15 @@ export default function AuditPage() {
   useEffect(() => {
     fetch('/api/audit/config')
       .then((r) => r.json())
-      .then((d) => setRequiresSecret(Boolean(d.requiresSecret)))
+      .then((d) => {
+        setRequiresSecret(Boolean(d.requiresSecret));
+        if (d.cloudHosted) {
+          setCloudHosted(true);
+          setEngineLighthouse(false);
+          setEngineSiteAudit(false);
+          setMaxPages((n) => Math.min(n, d.cloudLimits?.maxRulesPages || 10));
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -138,6 +147,16 @@ export default function AuditPage() {
         <code>data/</code>。
       </p>
 
+      {cloudHosted ? (
+        <div className="card card-inset" style={{ marginBottom: 16, borderColor: 'var(--color-warn)' }}>
+          <p style={{ margin: 0, fontSize: '0.92rem' }}>
+            <strong>云托管模式</strong>：网关约 60 秒超时，仅支持<strong>规则审计</strong>（建议 ≤10
+            页）。Lighthouse / site-audit-seo 请在本机执行{' '}
+            <code>npm run audit:lighthouse</code>、<code>npm run audit:site-audit-seo</code>。
+          </p>
+        </div>
+      ) : null}
+
       <div className="card">
         <h2>审计引擎</h2>
         <div style={{ marginBottom: 12 }}>
@@ -149,18 +168,20 @@ export default function AuditPage() {
             />{' '}
             规则审计（title / meta / H1 / alt，默认）
           </label>
-          <label style={{ display: 'block', marginBottom: 8 }}>
+          <label style={{ display: 'block', marginBottom: 8, opacity: cloudHosted ? 0.5 : 1 }}>
             <input
               type="checkbox"
               checked={engineLighthouse}
+              disabled={cloudHosted}
               onChange={(e) => setEngineLighthouse(e.target.checked)}
             />{' '}
             Lighthouse（前 {lighthouseMax} 页，较慢，需本机 Chrome）
           </label>
-          <label style={{ display: 'block' }}>
+          <label style={{ display: 'block', opacity: cloudHosted ? 0.5 : 1 }}>
             <input
               type="checkbox"
               checked={engineSiteAudit}
+              disabled={cloudHosted}
               onChange={(e) => setEngineSiteAudit(e.target.checked)}
             />{' '}
             site-audit-seo 整站爬虫（最多 {siteAuditMax} 页，含 Lighthouse 字段，首次会下载 CLI）
@@ -174,7 +195,7 @@ export default function AuditPage() {
             <input
               type="number"
               min={1}
-              max={80}
+              max={cloudHosted ? 10 : 80}
               value={maxPages}
               onChange={(e) => setMaxPages(Number(e.target.value))}
               style={{ padding: 8, width: 100, borderRadius: 8, border: '1px solid var(--color-border)' }}
