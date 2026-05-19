@@ -3,7 +3,8 @@ FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 ENV SEO_SKIP_ENV_BOOTSTRAP=1
-RUN npm ci
+# 镜像构建不跑 postinstall（无 secrets.env）；运行时靠云托管环境变量
+RUN npm ci --ignore-scripts
 
 FROM node:18-alpine AS builder
 WORKDIR /app

@@ -13,6 +13,10 @@ const {
   SCHEDULE_KEYS,
 } = require('./env-parse');
 
+if (process.env.SEO_SKIP_ENV_BOOTSTRAP === '1' || process.env.CI === 'true') {
+  process.exit(0);
+}
+
 const root = path.join(__dirname, '..');
 const target = path.join(root, '.env.local');
 const secretsPath = path.join(root, 'config', 'secrets.env');
