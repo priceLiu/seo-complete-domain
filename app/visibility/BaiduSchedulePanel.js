@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { describeScheduleLastRun } from '@/lib/format-run-record';
 import { useSite } from '../components/SiteProvider';
 
 export default function BaiduSchedulePanel({ requiresSecret, auditSecret }) {
@@ -8,6 +9,8 @@ export default function BaiduSchedulePanel({ requiresSecret, auditSecret }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  /** 本次点击「推送今日一批」的即时结果（与 lastRun 历史记录分开） */
+  const [justRan, setJustRan] = useState(null);
 
   const load = useCallback(() => {
     const q = activeId ? `?siteId=${encodeURIComponent(activeId)}` : '';
@@ -27,6 +30,7 @@ export default function BaiduSchedulePanel({ requiresSecret, auditSecret }) {
       return;
     }
     setErr('');
+    setJustRan(null);
     setLoading(true);
     const secret = auditSecret?.trim() || '';
     const headers = { 'Content-Type': 'application/json' };
@@ -41,15 +45,21 @@ export default function BaiduSchedulePanel({ requiresSecret, auditSecret }) {
         if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
         return j;
       })
-      .then(() => load())
+      .then((j) => {
+        setJustRan(j.record || null);
+        load();
+      })
       .catch((e) => setErr(e.message || String(e)))
       .finally(() => setLoading(false));
   };
 
   if (!status) return null;
 
-  const last = status.lastRun;
+  const last = status.lastRuns?.baidu || status.lastRun;
+  const lastDesc = describeScheduleLastRun(last);
   const q = status.queue;
+  const todayFull =
+    q && status.dailyLimit && (q.daily?.successCount ?? 0) >= status.dailyLimit;
 
   return (
     <div className="card card-inset">
@@ -91,23 +101,61 @@ export default function BaiduSchedulePanel({ requiresSecret, auditSecret }) {
           <div className="progress-fill" style={{ width: `${q.percent}%` }} />
         </div>
       ) : null}
-      {last ? (
-        <p className="muted" style={{ margin: '0 0 12px', fontSize: '0.88rem' }}>
-          上次：{last.finishedAt || last.startedAt} ·{' '}
-          {last.ok ? (
-            <>
-              本批 <strong>{last.batchSize ?? '—'}</strong> 条
-              {last.message ? ` · ${last.message}` : ''}
-            </>
-          ) : (
-            <span className="issue-high">失败：{last.error}</span>
-          )}
+      <div
+        style={{
+          margin: '0 0 12px',
+          padding: 10,
+          borderRadius: 8,
+          background: 'var(--color-surface-2, rgba(0,0,0,0.03))',
+          fontSize: '0.88rem',
+        }}
+      >
+        <div className="muted" style={{ marginBottom: 4 }}>
+          {lastDesc.title}
+          {lastDesc.isStale ? (
+            <span className="badge badge-warn" style={{ marginLeft: 8 }}>
+              较早记录
+            </span>
+          ) : null}
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          {lastDesc.detail}
         </p>
-      ) : (
-        <p className="muted" style={{ margin: '0 0 12px', fontSize: '0.88rem' }}>
-          尚未执行过定时任务。
+        <p className="muted" style={{ margin: '8px 0 0', fontSize: '0.82rem' }}>
+          说明：此处为<strong>队列/定时任务</strong>写入磁盘的上一次结果，与下方「手动 URL / Sitemap
+          推送」的返回<strong>不是同一次操作</strong>。若显示失败但下方刚推送成功，以本次手动结果为准。
         </p>
-      )}
+      </div>
+      {todayFull ? (
+        <p className="muted" style={{ margin: '0 0 12px', fontSize: '0.88rem' }}>
+          本应用记录的今日额度已用满（{q.daily?.successCount}/{status.dailyLimit}
+          ），百度 API 可能返回 <code>remain: 0</code> 或不再接受新 URL。
+        </p>
+      ) : null}
+      {justRan ? (
+        <div
+          className="card"
+          style={{ marginBottom: 12, padding: 12, border: '1px solid var(--color-border)' }}
+        >
+          <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem' }}>本次「推送今日一批」结果</h4>
+          <p className="muted" style={{ margin: 0, fontSize: '0.88rem' }}>
+            {justRan.ok ? (
+              <>
+                成功 · 本批 <strong>{justRan.batchSize ?? 0}</strong> 条
+                {justRan.message ? ` · ${justRan.message}` : ''}
+                {justRan.push?.lastRemain != null ? (
+                  <>
+                    {' '}
+                    · 百度剩余 <strong>{justRan.push.lastRemain}</strong>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <span className="issue-high">失败：{justRan.error}</span>
+            )}
+          </p>
+        </div>
+      ) : null}
       <button type="button" className="btn btn-secondary" onClick={runNow} disabled={loading}>
         {loading ? '执行中…' : '推送今日一批'}
       </button>

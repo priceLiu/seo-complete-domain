@@ -27,6 +27,14 @@ export default function QueueProgress({ engine = 'baidu' }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const onRefresh = (e) => {
+      if (!e.detail?.engine || e.detail.engine === engine) load();
+    };
+    window.addEventListener('seo-queue-refresh', onRefresh);
+    return () => window.removeEventListener('seo-queue-refresh', onRefresh);
+  }, [load, engine]);
+
   const runAction = (action) => {
     setLoading(true);
     setErr('');

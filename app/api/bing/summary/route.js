@@ -8,6 +8,7 @@ import {
   fetchBingRankAndTrafficStats,
   fetchBingUrlSubmissionQuota,
   fetchBingUserSites,
+  formatBingFetchError,
   pickMatchingSite,
 } from '@/lib/bing-webmaster';
 
@@ -47,44 +48,51 @@ export async function GET() {
     let crawlIssuesError = null;
 
     if (siteUrl) {
-      const tasks = [
-        fetchBingRankAndTrafficStats(key, siteUrl)
-          .then((d) => {
-            traffic = d;
-          })
-          .catch((e) => {
-            trafficError = e.message || String(e);
-          }),
-        fetchBingUrlSubmissionQuota(key, siteUrl)
-          .then((d) => {
-            quota = d;
-          })
-          .catch((e) => {
-            quotaError = e.message || String(e);
-          }),
-        fetchBingQueryStats(key, siteUrl)
-          .then((d) => {
-            queryStats = d;
-          })
-          .catch((e) => {
-            queryStatsError = e.message || String(e);
-          }),
-        fetchBingPageStats(key, siteUrl)
-          .then((d) => {
-            pageStats = d;
-          })
-          .catch((e) => {
-            pageStatsError = e.message || String(e);
-          }),
-        fetchBingCrawlIssues(key, siteUrl)
-          .then((d) => {
-            crawlIssues = d;
-          })
-          .catch((e) => {
-            crawlIssuesError = e.message || String(e);
-          }),
-      ];
-      await Promise.all(tasks);
+      const wrap =
+        (setter, errSetter) =>
+        async (fn) => {
+          try {
+            setter(await fn());
+          } catch (e) {
+            errSetter(formatBingFetchError(e));
+          }
+        };
+
+      // 串行拉取，降低并发访问 ssl.bing.com 时被重置连接的概率
+      await wrap((v) => {
+        traffic = v;
+      }, (m) => {
+        trafficError = m;
+      })(() => fetchBingRankAndTrafficStats(key, siteUrl));
+      await wrap((v) => {
+        quota = v;
+      }, (m) => {
+        quotaError = m;
+      })(() => fetchBingUrlSubmissionQuota(key, siteUrl));
+      await wrap((v) => {
+        queryStats = v;
+      }, (m) => {
+        queryStatsError = m;
+      })(() => fetchBingQueryStats(key, siteUrl));
+      await wrap((v) => {
+        pageStats = v;
+      }, (m) => {
+        pageStatsError = m;
+      })(() => fetchBingPageStats(key, siteUrl));
+      await wrap((v) => {
+        crawlIssues = v;
+      }, (m) => {
+        crawlIssuesError = m;
+      })(() => fetchBingCrawlIssues(key, siteUrl));
+
+      if (crawlIssuesError) {
+        try {
+          crawlIssues = await fetchBingCrawlIssues(key, siteUrl);
+          crawlIssuesError = null;
+        } catch (e) {
+          crawlIssuesError = formatBingFetchError(e);
+        }
+      }
     }
 
     return NextResponse.json({

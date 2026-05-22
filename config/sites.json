@@ -14,7 +14,7 @@
       },
       "push": {
         "baiduDailyLimit": 10,
-        "bingDailyLimit": 100,
+        "bingDailyLimit": 10,
         "baiduBatchSize": 2000
       }
     }

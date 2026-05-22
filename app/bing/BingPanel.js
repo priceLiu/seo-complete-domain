@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { useSite } from '../components/SiteProvider';
 
 const ACCENT = '#2264e6';
 const OK = '#2e7d32';
@@ -17,7 +18,10 @@ const inputStyle = {
 
 function apiState(error, count, write = false) {
   if (write) return { label: '可操作', kind: 'ok' };
-  if (error) return { label: '拉取失败', kind: 'err' };
+  if (error) {
+    const retryable = /网络不稳定|ECONNRESET|fetch failed|重试/i.test(error);
+    return { label: retryable ? '拉取失败（可重试）' : '拉取失败', kind: 'err' };
+  }
   if (count > 0) return { label: `已返回 ${count} 条`, kind: 'ok' };
   return { label: '已接通，暂无数据', kind: 'empty' };
 }
@@ -33,13 +37,14 @@ function StatusBadge({ state }) {
 }
 
 export default function BingPanel() {
+  const { activeId } = useSite();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [submitMode, setSubmitMode] = useState('urls');
   const [urlsText, setUrlsText] = useState('');
   const [feedUrl, setFeedUrl] = useState('');
-  const [sitemapMax, setSitemapMax] = useState(100);
+  const [sitemapMax, setSitemapMax] = useState(5000);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [submitErr, setSubmitErr] = useState('');
@@ -124,36 +129,71 @@ export default function BingPanel() {
     };
   }, [data]);
 
-  const doSubmit = () => {
+  const doSubmit = async () => {
     setSubmitErr('');
     setSubmitResult(null);
     setSubmitLoading(true);
-    const payload =
-      submitMode === 'feed'
-        ? { mode: 'feed', feedUrl: feedUrl.trim() }
-        : submitMode === 'sitemap'
-          ? { mode: 'sitemap', sitemapUrl: feedUrl.trim(), maxPages: sitemapMax }
-          : {
-              mode: 'urls',
-              urls: urlsText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean),
-            };
+    try {
+      if (submitMode === 'sitemap') {
+        if (!activeId) throw new Error('请先选择站点');
+        const sitemapUrl = feedUrl.trim();
+        if (!sitemapUrl) throw new Error('请填写 Sitemap URL');
 
-    fetch('/api/bing/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(async (r) => {
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-        return j;
-      })
-      .then((j) => {
+        const syncRes = await fetch('/api/push/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siteId: activeId,
+            engine: 'bing',
+            action: 'sync',
+            sitemapUrl,
+            maxUrls: Math.min(Math.max(1, sitemapMax), 5000),
+          }),
+        });
+        const syncJson = await syncRes.json();
+        if (!syncRes.ok) throw new Error(syncJson.error || `同步失败 HTTP ${syncRes.status}`);
+
+        const runRes = await fetch('/api/push/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId: activeId, engine: 'bing', action: 'run' }),
+        });
+        const runJson = await runRes.json();
+        if (!runRes.ok) throw new Error(runJson.error || `推送失败 HTTP ${runRes.status}`);
+
+        const rec = runJson.record || {};
+        const q = rec.queue || syncJson.queue;
+        setSubmitResult({
+          mode: 'queue',
+          submitted: rec.batchSize ?? 0,
+          message: rec.message,
+          queue: q,
+        });
+        window.dispatchEvent(new CustomEvent('seo-queue-refresh', { detail: { engine: 'bing' } }));
+      } else {
+        const payload =
+          submitMode === 'feed'
+            ? { mode: 'feed', feedUrl: feedUrl.trim() }
+            : {
+                mode: 'urls',
+                urls: urlsText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean),
+              };
+
+        const res = await fetch('/api/bing/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
         setSubmitResult(j);
-        load();
-      })
-      .catch((e) => setSubmitErr(e.message || String(e)))
-      .finally(() => setSubmitLoading(false));
+      }
+      load();
+    } catch (e) {
+      setSubmitErr(e.message || String(e));
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   if (loading) {
@@ -320,7 +360,7 @@ export default function BingPanel() {
                   checked={submitMode === 'sitemap'}
                   onChange={() => setSubmitMode('sitemap')}
                 />{' '}
-                Sitemap 抓取后批量提交
+                Sitemap 队列推送（续点，推荐）
               </label>
               <label>
                 <input
@@ -347,14 +387,21 @@ export default function BingPanel() {
             )}
 
             {submitMode === 'sitemap' && (
+              <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.88rem' }}>
+                先同步 Sitemap 进队列，再按 <code>config/sites.json</code> 的{' '}
+                <code>bingDailyLimit</code> 推送<strong>今日一批</strong>；已推送 URL 会标记完成，次日自动续推未完成的，整轮结束后下一轮。与上方「Bing
+                推送队列」相同逻辑。
+              </p>
+            )}
+            {submitMode === 'sitemap' && (
               <>
                 <label className="muted" style={{ display: 'block', margin: '8px 0 6px' }}>
-                  最多抓取（≤500）
+                  同步进队列时最多导入 URL 数（≤5000）
                 </label>
                 <input
                   type="number"
                   min={1}
-                  max={500}
+                  max={5000}
                   value={sitemapMax}
                   onChange={(e) => setSitemapMax(Number(e.target.value))}
                   style={{ ...inputStyle, width: 120 }}
@@ -378,7 +425,11 @@ export default function BingPanel() {
             )}
 
             <button type="button" className="btn" disabled={submitLoading} onClick={doSubmit}>
-              {submitLoading ? '提交中…' : '提交到 Bing'}
+              {submitLoading
+                ? '提交中…'
+                : submitMode === 'sitemap'
+                  ? '同步并推送今日一批'
+                  : '提交到 Bing'}
             </button>
             {submitErr ? <p className="issue-high">{submitErr}</p> : null}
             {submitResult ? (
@@ -386,7 +437,13 @@ export default function BingPanel() {
                 成功：
                 {submitResult.mode === 'feed'
                   ? `已登记 Feed ${submitResult.feedUrl}`
-                  : `已提交 ${submitResult.submitted} 条 URL`}
+                  : submitResult.mode === 'queue'
+                    ? `本次推送 ${submitResult.submitted ?? 0} 条${
+                        submitResult.queue
+                          ? ` · 队列 ${submitResult.queue.done}/${submitResult.queue.total} 已完成 · 待推 ${submitResult.queue.pending}`
+                          : ''
+                      }${submitResult.message ? ` · ${submitResult.message}` : ''}`
+                    : `已提交 ${submitResult.submitted} 条 URL（一次性，不续点）`}
               </p>
             ) : null}
           </>
@@ -463,6 +520,7 @@ export default function BingPanel() {
           col2="issue"
           col2Label="问题"
           hideMetrics
+          emptyHint="接口已接通，当前无抓取问题记录（表示 Bing 未报告异常 URL，属于正常情况）。"
         />
       </section>
 
@@ -497,12 +555,17 @@ export default function BingPanel() {
   );
 }
 
-function DataTable({ error, rows, col1, col1Label, col2, col2Label, hideMetrics }) {
+function DataTable({ error, rows, col1, col1Label, col2, col2Label, hideMetrics, emptyHint }) {
   if (error) {
     return <p className="issue-high">拉取失败：{error}</p>;
   }
   if (!rows?.length) {
-    return <p className="muted">接口已接通，当前无记录（数据可能按周更新或站点尚无搜索表现）。</p>;
+    return (
+      <p className="muted">
+        {emptyHint ||
+          '接口已接通，当前无记录（数据可能按周更新或站点尚无搜索表现）。'}
+      </p>
+    );
   }
   return (
     <div style={{ overflowX: 'auto' }}>

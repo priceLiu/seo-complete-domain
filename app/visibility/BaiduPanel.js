@@ -13,9 +13,12 @@ export default function BaiduPanel() {
   const [urlsText, setUrlsText] = useState('');
   const [pushType, setPushType] = useState('normal');
   const [auditSecret, setAuditSecret] = useState('');
+  const [pingSitemap, setPingSitemap] = useState(false);
+  const [scheduleStatus, setScheduleStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState(null);
+  const [resultAt, setResultAt] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -25,6 +28,7 @@ export default function BaiduPanel() {
     ])
       .then(([c, schedule, a]) => {
         setConfig(c);
+        setScheduleStatus(schedule);
         const url =
           schedule?.sitemapUrl ||
           c?.scheduleSitemapUrl ||
@@ -88,6 +92,7 @@ export default function BaiduPanel() {
     }
     setErr('');
     setResult(null);
+    setResultAt(null);
     setLoading(true);
     const secret = auditSecret.trim();
     const headers = { 'Content-Type': 'application/json' };
@@ -99,7 +104,7 @@ export default function BaiduPanel() {
         sitemapUrl: u,
         maxPages: sitemapMax,
         type: pushType === 'daily' ? 'daily' : 'normal',
-        ping: true,
+        ping: pingSitemap,
         ...(secret ? { secret } : {}),
       }),
     })
@@ -108,7 +113,14 @@ export default function BaiduPanel() {
         if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
         return j;
       })
-      .then(setResult)
+      .then((j) => {
+        setResult(j);
+        setResultAt(new Date().toISOString());
+        fetch('/api/baidu/schedule')
+          .then((r) => r.json())
+          .then(setScheduleStatus)
+          .catch(() => {});
+      })
       .catch((e) => setErr(e.message || String(e)))
       .finally(() => setLoading(false));
   };
@@ -132,6 +144,7 @@ export default function BaiduPanel() {
     }
     setErr('');
     setResult(null);
+    setResultAt(null);
     setLoading(true);
     const secret = auditSecret.trim();
     const headers = { 'Content-Type': 'application/json' };
@@ -150,10 +163,16 @@ export default function BaiduPanel() {
         if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
         return j;
       })
-      .then(setResult)
+      .then((j) => {
+        setResult(j);
+        setResultAt(new Date().toISOString());
+      })
       .catch((e) => setErr(e.message || String(e)))
       .finally(() => setLoading(false));
   };
+
+  const queueToday = scheduleStatus?.queue?.daily?.successCount;
+  const queueLimit = scheduleStatus?.dailyLimit;
 
   if (!config) {
     return (
@@ -316,6 +335,17 @@ export default function BaiduPanel() {
                   ) : null}
                 </p>
               ) : null}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={pingSitemap}
+                  onChange={(e) => setPingSitemap(e.target.checked)}
+                />
+                <span className="muted" style={{ fontSize: '0.88rem' }}>
+                  同时 Ping 登记 Sitemap（<code>ping.baidu.com</code>，可选；失败常表现为 HTTP
+                  500，<strong>与 URL 推送配额无关</strong>）
+                </span>
+              </label>
             </>
           ) : (
             <>
@@ -386,45 +416,112 @@ export default function BaiduPanel() {
 
       {result?.ok ? (
         <div className="card" style={{ marginTop: 16, padding: 16 }}>
-          <h3 style={{ fontSize: '0.95rem', margin: '0 0 8px' }}>百度返回</h3>
-          <pre
-            style={{
-              margin: 0,
-              fontSize: 12,
-              overflow: 'auto',
-              color: 'var(--color-muted)',
-            }}
-          >
-            {JSON.stringify(
-              result.mode === 'sitemap' ? result : result.result,
-              null,
-              2,
-            )}
-          </pre>
+          <h3 style={{ fontSize: '0.95rem', margin: '0 0 4px' }}>
+            本次手动推送结果
+            {resultAt ? (
+              <span className="muted" style={{ fontWeight: 400, fontSize: '0.82rem', marginLeft: 8 }}>
+                {new Date(resultAt).toLocaleString('zh-CN', { hour12: false })}
+              </span>
+            ) : null}
+          </h3>
+          <p className="muted" style={{ margin: '0 0 12px', fontSize: '0.82rem' }}>
+            与上方「定时队列推送」中的<strong>历史记录</strong>不是同一次操作。
+          </p>
+
           {result.mode === 'sitemap' && result.push ? (
-            <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              Sitemap 共 <strong>{result.push.urlCount}</strong> 条；本次实际提交{' '}
-              <strong>{result.push.pushedCount ?? result.push.urlCount}</strong> 条（分{' '}
-              <strong>{result.push.batchCount}</strong> 批），百度成功{' '}
-              <strong>{result.push.totalSuccess}</strong> 条
-              {typeof result.push.lastRemain === 'number' ? (
-                <>
-                  ，今日剩余额度 <strong>{result.push.lastRemain}</strong>
-                </>
-              ) : null}
-              {result.push.skippedCount > 0 ? (
-                <>
-                  ；未提交 <strong>{result.push.skippedCount}</strong> 条（配额不足，请明日再推或走队列）
-                </>
-              ) : null}
-              。
-              {result.pingError ? ` Ping：${result.pingError}` : null}
-            </p>
+            <>
+              <h4 style={{ fontSize: '0.88rem', margin: '0 0 6px' }}>
+                1. URL 主动推送（<code>data.zz.baidu.com</code>）
+              </h4>
+              <p className="muted" style={{ marginTop: 0, marginBottom: 8 }}>
+                {result.push.pushedCount > 0 ? (
+                  <>
+                    已提交 <strong>{result.push.pushedCount}</strong> / {result.push.urlCount} 条，百度成功{' '}
+                    <strong>{result.push.totalSuccess}</strong> 条
+                    {typeof result.push.lastRemain === 'number' ? (
+                      <>
+                        ，剩余额度 <strong>{result.push.lastRemain}</strong>
+                      </>
+                    ) : null}
+                    。
+                  </>
+                ) : (
+                  <>
+                    <span className="issue-high">本次未向百度提交任何 URL</span>
+                    {result.push.quotaExhausted ? '（今日配额已用尽）' : ''}。
+                    {queueLimit != null && queueToday != null && queueToday >= queueLimit ? (
+                      <>
+                        {' '}
+                        定时队列今日已记 <strong>{queueToday}/{queueLimit}</strong> 条，与百度{' '}
+                        <code>remain: 0</code> 一致时无法再推。
+                      </>
+                    ) : (
+                      <> 请查看百度站长平台今日剩余条数，或明日再试。</>
+                    )}
+                  </>
+                )}
+                {result.push.skippedCount > 0 ? (
+                  <>
+                    {' '}
+                    另有 <strong>{result.push.skippedCount}</strong> 条未提交。
+                  </>
+                ) : null}
+              </p>
+              <pre
+                style={{
+                  margin: '0 0 12px',
+                  fontSize: 12,
+                  overflow: 'auto',
+                  color: 'var(--color-muted)',
+                }}
+              >
+                {JSON.stringify(result.push, null, 2)}
+              </pre>
+
+              <h4 style={{ fontSize: '0.88rem', margin: '0 0 6px' }}>
+                2. Sitemap Ping（<code>ping.baidu.com</code>，可选）
+              </h4>
+              {!pingSitemap ? (
+                <p className="muted" style={{ margin: 0 }}>
+                  未勾选 Ping，已跳过。
+                </p>
+              ) : result.ping ? (
+                <p className="muted" style={{ margin: 0 }}>
+                  成功（HTTP {result.ping.status}）。
+                </p>
+              ) : result.pingError ? (
+                <p className="issue-high" style={{ margin: 0 }}>
+                  {result.pingError}
+                  <span className="muted" style={{ display: 'block', marginTop: 6, fontWeight: 400 }}>
+                    这是 Ping 接口报错，<strong>不是</strong> URL 推送配额问题；不影响{' '}
+                    <code>data.zz.baidu.com</code> 的主动推送结果。
+                  </span>
+                </p>
+              ) : (
+                <p className="muted" style={{ margin: 0 }}>
+                  无 Ping 结果。
+                </p>
+              )}
+            </>
           ) : (
-            <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              常见字段：<code>success</code>（本次成功条数）、<code>remain</code>
-              （今日剩余可推送条数）。单条成功不代表 Sitemap 可一次推全站。
-            </p>
+            <>
+              <h4 style={{ fontSize: '0.88rem', margin: '0 0 6px' }}>
+                URL 主动推送（<code>data.zz.baidu.com</code>）
+              </h4>
+              <pre
+                style={{
+                  margin: '0 0 8px',
+                  fontSize: 12,
+                  overflow: 'auto',
+                  color: 'var(--color-muted)',
+                }}
+              >
+                {JSON.stringify(result.result, null, 2)}
+              </pre>
+              <p className="muted" style={{ margin: 0 }}>
+                <code>success</code>：本次成功条数；<code>remain</code>：今日剩余可推送条数。
+              </p>
+            </>
           )}
         </div>
       ) : null}
