@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import BaiduSchedulePanel from './BaiduSchedulePanel';
+import BaiduSitemapGuide from './BaiduSitemapGuide';
 
 export default function BaiduPanel() {
   const [config, setConfig] = useState(null);
@@ -232,6 +233,11 @@ export default function BaiduPanel() {
               </span>
             ) : null}
           </p>
+
+          <BaiduSitemapGuide
+            sitemapUrl={sitemapUrl || config.defaultSitemapUrl}
+            pushSite={config.sitemapPushSite || config.pushSite}
+          />
 
           <BaiduSchedulePanel requiresSecret={requiresSecret} auditSecret={auditSecret} />
 

@@ -96,7 +96,8 @@ export default function QueueProgress({ engine = 'baidu' }) {
         <div className={`progress-fill progress-fill-${engine}`} style={{ width: `${q.percent}%` }} />
       </div>
       <p className="muted" style={{ fontSize: '0.88rem', margin: '10px 0' }}>
-        {label}：每天按额度推一批，次日续传；整轮完成后自动下一轮。
+        {label}：每天按额度推一批，次日续传；整轮完成后自动下一轮。同步后队列 URL 与{' '}
+        <code>sites.json</code> 站点主域（如 www）一致。
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button

@@ -48,6 +48,7 @@ export async function POST(request) {
         engine,
         sitemapUrl: body.sitemapUrl || site.sitemapUrl,
         maxUrls: body.maxUrls || 5000,
+        canonicalSiteUrl: site.url,
       });
       return NextResponse.json({ ok: true, action: 'sync', engine, queue: summary });
     }
