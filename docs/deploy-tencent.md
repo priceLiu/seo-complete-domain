@@ -57,6 +57,10 @@ npm run scf:package
 
 保存后在函数页 **「测试」** 运行一次，看返回里 `ok: true`。
 
+**重要**：除「函数配置」里的 JSON 外，务必打开 **「触发管理」** 确认已有一条 **已启用** 的定时触发器；若列表为空，定时不会执行。详见 [scf-troubleshooting.md](./scf-troubleshooting.md)。
+
+本地模拟：`npm run scf:test`
+
 ---
 
 ## 可选：COS 持久化队列

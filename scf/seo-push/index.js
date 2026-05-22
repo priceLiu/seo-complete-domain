@@ -26,22 +26,39 @@ try {
   /* 仅 SCF 环境变量时可忽略 */
 }
 
-async function runPushJob() {
+async function runPushJob(event) {
   const started = new Date().toISOString();
+  const triggerName =
+    event?.TriggerName || event?.triggerName || event?.trigger_name || null;
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      msg: 'scf-seo-push start',
+      started,
+      trigger: 'scf',
+      timerName: triggerName,
+      pushQueueDir: process.env.PUSH_QUEUE_DIR,
+      scheduleDataDir: process.env.SCHEDULE_DATA_DIR,
+    }),
+  );
   try {
     const { runScheduledPushAllSites } = await import('./lib/run-scheduled-push.js');
     const results = await runScheduledPushAllSites({ trigger: 'scf' });
     const failed = results.filter((r) => !r.ok);
+    const body = {
+      ok: failed.length === 0,
+      started,
+      finished: new Date().toISOString(),
+      pushQueueDir: process.env.PUSH_QUEUE_DIR,
+      scheduleDataDir: process.env.SCHEDULE_DATA_DIR,
+      timerName: triggerName,
+      results,
+    };
+    console.log(JSON.stringify({ level: failed.length ? 'warn' : 'info', msg: 'scf-seo-push done', ...body }));
     return {
       statusCode: failed.length ? 207 : 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ok: failed.length === 0,
-        started,
-        finished: new Date().toISOString(),
-        pushQueueDir: process.env.PUSH_QUEUE_DIR,
-        results,
-      }),
+      body: JSON.stringify(body),
     };
   } catch (e) {
     return {
@@ -57,10 +74,10 @@ async function runPushJob() {
 }
 
 /** 控制台默认「执行方法」多为 index.main */
-export async function main() {
-  return runPushJob();
+export async function main(event) {
+  return runPushJob(event);
 }
 
-export async function main_handler() {
-  return runPushJob();
+export async function main_handler(event) {
+  return runPushJob(event);
 }
