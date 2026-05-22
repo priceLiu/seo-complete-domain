@@ -22,13 +22,13 @@ npm run scf:package
 
 | 配置项 | 填什么 |
 |--------|--------|
-| 函数名 | `seo-push`（随意） |
+| 函数名 | `seo-schedule-push`（与控制台一致即可） |
 | 运行环境 | Node.js 18 |
-| 执行方法 | **`index.main`** |
+| 执行方法 | **`index.main`**（根目录 `index.js` 须为 CommonJS；勿在根 `package.json` 写 `"type":"module"`） |
 | 内存 | 256MB |
 | **执行超时** | **90 秒**（在「函数配置」里，不是「初始化超时」） |
 
-上传 `dist/scf-seo-push.zip` 作为代码。
+上传 `dist/scf-seo-push.zip` 作为代码（**已含** `node_modules`，约 1–3MB，无需在控制台再点「安装依赖」）。
 
 **环境变量**：可不填（已打在包里）。若挂了 COS，只需加一条：`PUSH_QUEUE_DIR=/mnt/queue`。
 

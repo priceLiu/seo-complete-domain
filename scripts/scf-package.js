@@ -46,6 +46,11 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 
 copyFile(path.join(ROOT, 'scf/seo-push/index.js'), path.join(OUT_DIR, 'index.js'));
 copyDir(path.join(ROOT, 'lib'), path.join(OUT_DIR, 'lib'));
+fs.writeFileSync(
+  path.join(OUT_DIR, 'lib', 'package.json'),
+  JSON.stringify({ type: 'module' }, null, 2) + '\n',
+  'utf8',
+);
 copyDir(path.join(ROOT, 'scripts'), path.join(OUT_DIR, 'scripts'));
 fs.mkdirSync(path.join(OUT_DIR, 'config'), { recursive: true });
 copyFile(path.join(ROOT, 'config/sites.json'), path.join(OUT_DIR, 'config/sites.json'));
@@ -60,12 +65,29 @@ const scfEnv = [
 fs.writeFileSync(path.join(OUT_DIR, 'config', 'scf.env'), scfEnv + '\n', 'utf8');
 
 fs.mkdirSync(path.join(OUT_DIR, 'data'), { recursive: true });
-fs.writeFileSync(path.join(OUT_DIR, 'package.json'), JSON.stringify({ type: 'module' }, null, 2));
+fs.writeFileSync(
+  path.join(OUT_DIR, 'package.json'),
+  JSON.stringify(
+    {
+      name: 'seo-schedule-push',
+      private: true,
+      dependencies: {
+        axios: '^1.7.0',
+      },
+    },
+    null,
+    2,
+  ) + '\n',
+  'utf8',
+);
+
+console.log('[scf:package] 安装生产依赖（axios）…');
+execSync('npm install --omit=dev --no-audit --no-fund', { cwd: OUT_DIR, stdio: 'inherit' });
 
 rmrf(ZIP);
 fs.mkdirSync(path.dirname(ZIP), { recursive: true });
 execSync(`cd "${OUT_DIR}" && zip -r "${ZIP}" .`, { stdio: 'inherit' });
 
 console.log(`\n[scf:package] 完成: ${ZIP}`);
-console.log('[scf:package] 密钥已打进 zip，控制台只需：执行方法 index.main，可选挂 COS');
+console.log('[scf:package] 已含 node_modules（axios），执行方法：index.main');
 console.log('[scf:package] 不必配置 SITES_SECRETS_JSON');

@@ -36,7 +36,44 @@
 | **Cron** | `0 0 3 * * * *` |
 | **日志 / 测试** | 有 `scf-seo-push start` |
 
-## 2. 手动测试（必做）
+## 2. 测试报 `145 code exit unexpected`
+
+**原因**：根目录 `index.js` 用了 `import/export`，或根 `package.json` 含 `"type":"module"`。SCF 用 `require()` 加载 `index.main`，会立刻崩溃。
+
+**处理**：用 `npm run scf:package` 重新上传 zip（入口为 CommonJS 的 `index.js`，`lib/package.json` 单独标记 ESM），执行方法 **`index.main`**。
+
+## 2b. 更新报 `entryFile did not find`
+
+**原因**：执行方法写成 `index.cjs.main`，但代码包里没有 `index.cjs`（或平台不认该文件名）。
+
+**处理**：执行方法改回 **`index.main`**，并上传最新 `dist/scf-seo-push.zip`（内含 `index.js`）。
+
+## 2c. 测试报 `Cannot find package 'axios'`
+
+**原因**：代码包未带 `node_modules`。
+
+**处理**：重新 `npm run scf:package` 并上传新 zip（脚本会自动 `npm install`）。
+
+## 2d. 测试报 `File is not defined`
+
+**原因**：旧包含 `cheerio` 1.2，会加载 `undici`，在 SCF Node 18 上缺少全局 `File`。
+
+**处理**：重新 `npm run scf:package` 并上传（sitemap 已改用纯正则解析，仅依赖 axios）。
+
+## 2e. 测试报 `Invoking task timed out after 3 seconds`
+
+**原因**：**执行超时** 只有 3 秒。拉 sitemap + 百度/Bing 推送通常要 10–60 秒。
+
+**处理**（函数配置 → 编辑）：
+
+| 项 | 应填 |
+|----|------|
+| **执行超时** | **90 秒** |
+| 初始化超时 | 默认 3–65 秒即可（与「执行超时」不是同一项） |
+
+保存后重新 **测试**（事件 `{}`）。
+
+## 3. 手动测试（必做）
 
 1. 本地重新打包：`npm run scf:package`
 2. 上传最新 `dist/scf-seo-push.zip`

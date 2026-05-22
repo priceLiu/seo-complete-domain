@@ -1,15 +1,12 @@
 /**
- * 腾讯云 SCF（Node 18+，package.json type=module）
- * 执行方法：index.main 或 index.main_handler（二选一）
+ * 腾讯云 SCF 入口（CommonJS，供 require 加载）
+ * 执行方法：index.main 或 index.main_handler
+ * lib/ 为 ESM，见 lib/package.json
  */
-import fs from 'fs';
-import path from 'path';
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
+const fs = require('fs');
+const path = require('path');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
-
 process.chdir(ROOT);
 
 if (!process.env.PUSH_QUEUE_DIR) {
@@ -19,7 +16,6 @@ if (!process.env.SCHEDULE_DATA_DIR) {
   process.env.SCHEDULE_DATA_DIR = '/tmp/schedule-data';
 }
 
-const require = createRequire(import.meta.url);
 try {
   require(path.join(ROOT, 'scripts', 'load-env.js')).loadProjectEnv();
 } catch {
@@ -54,7 +50,13 @@ async function runPushJob(event) {
       timerName: triggerName,
       results,
     };
-    console.log(JSON.stringify({ level: failed.length ? 'warn' : 'info', msg: 'scf-seo-push done', ...body }));
+    console.log(
+      JSON.stringify({
+        level: failed.length ? 'warn' : 'info',
+        msg: 'scf-seo-push done',
+        ...body,
+      }),
+    );
     return {
       statusCode: failed.length ? 207 : 200,
       headers: { 'Content-Type': 'application/json' },
@@ -73,11 +75,9 @@ async function runPushJob(event) {
   }
 }
 
-/** 控制台默认「执行方法」多为 index.main */
-export async function main(event) {
+async function main_handler(event) {
   return runPushJob(event);
 }
 
-export async function main_handler(event) {
-  return runPushJob(event);
-}
+exports.main_handler = main_handler;
+exports.main = main_handler;
